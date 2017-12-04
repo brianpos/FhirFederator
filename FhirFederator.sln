@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2006
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FhirFederator", "FhirFederator\FhirFederator.csproj", "{FF24417F-6EF1-4658-A94A-E3E8E88B8FCE}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A0157E39-B693-48A1-A1ED-59B4C8FF7D38}"
+	ProjectSection(SolutionItems) = preProject
+		contributors.md = contributors.md
+		LICENSE.md = LICENSE.md
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hl7.Fhir.NetCoreApi.STU3", "Hl7.Fhir.NetCoreApi\Hl7.Fhir.NetCoreApi.STU3.csproj", "{AB1ADA8C-338A-43DB-82C0-41FA73F2166A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FhirFederator.Tests", "FhirFederator.Tests\FhirFederator.Tests.csproj", "{BB6E95C5-D929-4C2F-BD31-45D52977DA86}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FF24417F-6EF1-4658-A94A-E3E8E88B8FCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF24417F-6EF1-4658-A94A-E3E8E88B8FCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF24417F-6EF1-4658-A94A-E3E8E88B8FCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF24417F-6EF1-4658-A94A-E3E8E88B8FCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AB1ADA8C-338A-43DB-82C0-41FA73F2166A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB1ADA8C-338A-43DB-82C0-41FA73F2166A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB1ADA8C-338A-43DB-82C0-41FA73F2166A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB1ADA8C-338A-43DB-82C0-41FA73F2166A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BB6E95C5-D929-4C2F-BD31-45D52977DA86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BB6E95C5-D929-4C2F-BD31-45D52977DA86}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BB6E95C5-D929-4C2F-BD31-45D52977DA86}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BB6E95C5-D929-4C2F-BD31-45D52977DA86}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1F1A5D95-C765-4573-BAD0-4990515AC69A}
+	EndGlobalSection
+EndGlobal
