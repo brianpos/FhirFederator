@@ -77,6 +77,7 @@ namespace Hl7.DemoFileSystemFhirServer
                 {
                     // create a connection with the supported format type
                     FhirClient server = new FhirClient(member.Url);
+                    System.Diagnostics.Trace.WriteLine($"Searching {member.Url} {member.Name}");
                     server.PreferCompressedResponses = true;
                     server.PreferredFormat = member.Format;
 
@@ -90,6 +91,7 @@ namespace Hl7.DemoFileSystemFhirServer
                     }
                     sp.Count = Count;
                     sp.Summary = summary;
+                    // Bundle partialResult = server.Search(sp, ResourceName);
                     Bundle partialResult = server.Search(sp, ResourceName);
                     lock (result)
                     {
@@ -104,16 +106,37 @@ namespace Hl7.DemoFileSystemFhirServer
                             entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
                             var prov = member.CreateProvenance();
                             member.WithProvenance(prov, entry.Resource);
-                            result.Entry.Add(new Bundle.EntryComponent() { Resource = prov });
+                            result.Entry.Add(new Bundle.EntryComponent()
+                            {
+                                Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Include },
+                                Resource = prov
+                            });
                         }
+                        OperationOutcome oe = new OperationOutcome();
+                        oe.Issue.Add(new OperationOutcome.IssueComponent()
+                        {
+                            Severity = OperationOutcome.IssueSeverity.Information,
+                            Code = OperationOutcome.IssueType.Informational,
+                            Details = new CodeableConcept(null,null, $"Searching {member.Name} found {partialResult.Total} results"),
+                            Diagnostics = partialResult.SelfLink.OriginalString
+                        });
+                        result.Entry.Add(new Bundle.EntryComponent()
+                        {
+                            Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
+                            Resource = oe
+                        });
                     }
                 }
-                catch(FhirOperationException ex)
+                catch (FhirOperationException ex)
                 {
                     if (ex.Outcome != null)
-                        result.Entry.Add(new Bundle.EntryComponent() { Resource = ex.Outcome });
+                        result.Entry.Add(new Bundle.EntryComponent()
+                        {
+                            Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
+                            Resource = ex.Outcome
+                        });
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     // some other weirdness went on
                     OperationOutcome oe = new OperationOutcome();
@@ -123,7 +146,11 @@ namespace Hl7.DemoFileSystemFhirServer
                         Code = OperationOutcome.IssueType.Exception,
                         Diagnostics = ex.Message
                     });
-                    result.Entry.Add(new Bundle.EntryComponent() { Resource = oe });
+                    result.Entry.Add(new Bundle.EntryComponent()
+                    {
+                        Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
+                        Resource = oe
+                    });
                 }
             }
 
