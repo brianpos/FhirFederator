@@ -21,6 +21,25 @@ Technically the utility is:
   * *FhirPath* (NuGet package `Hl7.FhirPath`) - the FhirPath evaluator, used by the Core and Specification assemblies
   * *Support* (NuGet package `Hl7.Fhir.Support`) - a library with interfaces, abstractions and utility methods that are used by the other packages
 
+## Member Registration ##
+The member registration is defined using the Endpoint resource, and currently only looks at
+ * Name
+ * Address
+ * PayLoadMimeType
+
+To register a server with the Federator, just put/post an Endpoint resource to the server, 
+along with `administer-federation` on the query URI
+
+e.g. To register a new demo federation member:
+```
+POST http://fhirfederator.azurewebsites.net/Endpoint/demo?administer-federation
+```
+*(and include in the body the endpoint resource details)*
+
+## Search ##
+The search will return a Provenance resource for each resource returned from the search,
+and an OperationOutcome giving a summary of each members contribution to the results (or error details)
+
 ## Support 
 Issues can be raised in the GitHub repository at [https://github.com/brianpos/fhirpathtester/issues](https://github.com/brianpos/fhirpathtester/issues).
 You are welcome to register your bugs and feature suggestions there. 
