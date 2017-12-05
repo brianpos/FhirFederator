@@ -50,7 +50,7 @@ namespace FhirFederator
             }
 
             app.UseResponseCompression();
-            app.UseResponseBuffering();
+            // app.UseResponseBuffering();
             app.UseMvc();
         }
     }
