@@ -63,31 +63,42 @@ namespace Hl7.DemoFileSystemFhirServer
             result.Id = new Uri("urn:uuid:" + Guid.NewGuid().ToString("n")).OriginalString;
             result.Type = Bundle.BundleType.Searchset;
             result.ResourceBase = RequestDetails.BaseUri;
+            result.Total = 0;
 
             // TODO: Thread the requests...
             // System.Threading.Tasks.Parallel.ForEach(_members, async (member) =>
             foreach (var member in _members)
             {
-                FhirClient server = new FhirClient(member.Url);
-                SearchParams sp = new SearchParams();
-                foreach (var item in parameters)
+                try
                 {
-                    sp.Add(item.Key, item.Value);
-                }
-                sp.Count = Count;
-                sp.Summary = summary;
-                Bundle partialResult = server.Search(sp, ResourceName);
-                lock (result)
-                {
-                    foreach (var entry in partialResult.Entry)
+                    FhirClient server = new FhirClient(member.Url);
+                    SearchParams sp = new SearchParams();
+                    foreach (var item in parameters)
                     {
-                        result.Entry.Add(entry);
-                        entry.Resource.ResourceBase = server.Endpoint;
-                        entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
-                        var prov = member.CreateProvenance();
-                        member.WithProvenance(prov, entry.Resource);
-                        result.Entry.Add(new Bundle.EntryComponent() { Resource = prov });
+                        sp.Add(item.Key, item.Value);
                     }
+                    sp.Count = Count;
+                    sp.Summary = summary;
+                    Bundle partialResult = server.Search(sp, ResourceName);
+                    lock (result)
+                    {
+                        if (partialResult.Total.HasValue)
+                            result.Total += partialResult.Total;
+                        foreach (var entry in partialResult.Entry)
+                        {
+                            result.Entry.Add(entry);
+                            entry.Resource.ResourceBase = server.Endpoint;
+                            entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
+                            var prov = member.CreateProvenance();
+                            member.WithProvenance(prov, entry.Resource);
+                            result.Entry.Add(new Bundle.EntryComponent() { Resource = prov });
+                        }
+                    }
+                }
+                catch(FhirOperationException ex)
+                {
+                    if (ex.Outcome != null)
+                        result.Entry.Add(new Bundle.EntryComponent() { Resource = ex.Outcome });
                 }
             }
 
