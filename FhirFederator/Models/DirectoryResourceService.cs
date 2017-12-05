@@ -66,16 +66,31 @@ namespace Hl7.DemoFileSystemFhirServer
 
         public System.Threading.Tasks.Task<Bundle> Search(IEnumerable<KeyValuePair<string, string>> parameters, int? Count, SummaryType summary)
         {
-            throw new NotImplementedException();
-            //Bundle result = new Bundle();
-            //result.Meta = new Meta();
-            //result.Id = new Uri("urn:uuid:" + Guid.NewGuid().ToString("n")).OriginalString;
-            //result.Type = Bundle.BundleType.Searchset;
-            //result.ResourceBase = RequestDetails.BaseUri;
+            Bundle result = new Bundle();
+            result.Meta = new Meta()
+            {
+                LastUpdated = DateTime.Now
+            };
+            result.Id = new Uri("urn:uuid:" + Guid.NewGuid().ToString("n")).OriginalString;
+            result.Type = Bundle.BundleType.Searchset;
 
-            // Check that the Last Update value is correctly entered and that the count is at least as big as the data included
-            // and update the links
-            // result.ProcessLastModifiedFromEntriesAndLinks(Request.RequestUri, pagesize, pagenumber, snapshotID);
+            var parser = new Fhir.Serialization.FhirXmlParser();
+            var files = System.IO.Directory.EnumerateFiles(DirectorySystemService.Directory, $"{ResourceName}.*.xml");
+            foreach (var filename in files)
+            {
+                // TODO: actually filter!
+                var resource = parser.Parse<Resource>(System.IO.File.ReadAllText(filename));
+                result.AddResourceEntry(resource,
+                    ResourceIdentity.Build(RequestDetails.BaseUri,
+                        resource.ResourceType.ToString(),
+                        resource.Id,
+                        resource.Meta.VersionId).OriginalString);
+            }
+            result.Total = result.Entry.Count;
+
+            // also need to set the page links
+
+            return System.Threading.Tasks.Task.FromResult(result);
         }
 
         public System.Threading.Tasks.Task<Bundle> TypeHistory(DateTimeOffset? since, DateTimeOffset? Till, int? Count, SummaryType summary)
