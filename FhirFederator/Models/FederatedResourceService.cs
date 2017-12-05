@@ -83,7 +83,10 @@ namespace Hl7.DemoFileSystemFhirServer
                     SearchParams sp = new SearchParams();
                     foreach (var item in parameters)
                     {
-                        sp.Add(item.Key, item.Value);
+                        if (item.Key == "_include")
+                            sp.Include.Add(item.Value);
+                        else
+                            sp.Add(item.Key, item.Value);
                     }
                     sp.Count = Count;
                     sp.Summary = summary;
@@ -96,6 +99,8 @@ namespace Hl7.DemoFileSystemFhirServer
                         {
                             result.Entry.Add(entry);
                             entry.Resource.ResourceBase = server.Endpoint;
+                            if (entry.Resource.Meta == null)
+                                entry.Resource.Meta = new Meta();
                             entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
                             var prov = member.CreateProvenance();
                             member.WithProvenance(prov, entry.Resource);
@@ -107,6 +112,18 @@ namespace Hl7.DemoFileSystemFhirServer
                 {
                     if (ex.Outcome != null)
                         result.Entry.Add(new Bundle.EntryComponent() { Resource = ex.Outcome });
+                }
+                catch(Exception ex)
+                {
+                    // some other weirdness went on
+                    OperationOutcome oe = new OperationOutcome();
+                    oe.Issue.Add(new OperationOutcome.IssueComponent()
+                    {
+                        Severity = OperationOutcome.IssueSeverity.Error,
+                        Code = OperationOutcome.IssueType.Exception,
+                        Diagnostics = ex.Message
+                    });
+                    result.Entry.Add(new Bundle.EntryComponent() { Resource = oe });
                 }
             }
 
