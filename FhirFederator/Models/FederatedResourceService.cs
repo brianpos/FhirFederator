@@ -1,0 +1,106 @@
+﻿using System;
+using System.Collections.Generic;
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Rest;
+using Hl7.Fhir.WebApi;
+using Hl7.Fhir.Utility;
+using FhirFederator.Models;
+
+namespace Hl7.DemoFileSystemFhirServer
+{
+    public class FederatedResourceService : Hl7.Fhir.WebApi.IFhirResourceServiceSTU3
+    {
+        public FederatedResourceService(List<FederationMember> members)
+        {
+            _members = members;
+        }
+
+        private List<FederationMember> _members;
+
+        public ModelBaseInputs RequestDetails { get; set; }
+
+        public string ResourceName { get; set; }
+
+        public System.Threading.Tasks.Task<Resource> Create(Resource resource, string ifMatch, string ifNoneExist, DateTimeOffset? ifModifiedSince)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<string> Delete(string id, string ifMatch)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<Resource> Get(string resourceId, string VersionId, SummaryType summary)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<CapabilityStatement.ResourceComponent> GetRestResourceComponent()
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<Bundle> InstanceHistory(string ResourceId, DateTimeOffset? since, DateTimeOffset? Till, int? Count, SummaryType summary)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<Resource> PerformOperation(string operation, Parameters operationParameters, SummaryType summary)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<Resource> PerformOperation(string id, string operation, Parameters operationParameters, SummaryType summary)
+        {
+            throw new NotImplementedException();
+        }
+
+        public System.Threading.Tasks.Task<Bundle> Search(IEnumerable<KeyValuePair<string, string>> parameters, int? Count, SummaryType summary)
+        {
+            Bundle result = new Bundle();
+            result.Meta = new Meta();
+            result.Id = new Uri("urn:uuid:" + Guid.NewGuid().ToString("n")).OriginalString;
+            result.Type = Bundle.BundleType.Searchset;
+            result.ResourceBase = RequestDetails.BaseUri;
+
+            // TODO: Thread the requests...
+            // System.Threading.Tasks.Parallel.ForEach(_members, async (member) =>
+            foreach (var member in _members)
+            {
+                FhirClient server = new FhirClient(member.Url);
+                SearchParams sp = new SearchParams();
+                foreach (var item in parameters)
+                {
+                    sp.Add(item.Key, item.Value);
+                }
+                sp.Count = Count;
+                sp.Summary = summary;
+                Bundle partialResult = server.Search(sp, ResourceName);
+                lock (result)
+                {
+                    foreach (var entry in partialResult.Entry)
+                    {
+                        result.Entry.Add(entry);
+                        entry.Resource.ResourceBase = server.Endpoint;
+                        entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
+                        var prov = member.CreateProvenance();
+                        member.WithProvenance(prov, entry.Resource);
+                        result.Entry.Add(new Bundle.EntryComponent() { Resource = prov });
+                    }
+                }
+            }
+
+            // TODO:Merge Sort the results?
+
+            // TODO:Mess with the back/next links
+
+            return System.Threading.Tasks.Task.FromResult(result);
+        }
+
+        public System.Threading.Tasks.Task<Bundle> TypeHistory(DateTimeOffset? since, DateTimeOffset? Till, int? Count, SummaryType summary)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}

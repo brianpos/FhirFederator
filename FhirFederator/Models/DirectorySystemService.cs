@@ -4,6 +4,7 @@ using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
 using Hl7.Fhir.WebApi;
 using System.Threading.Tasks;
+using FhirFederator.Models;
 
 namespace Hl7.DemoFileSystemFhirServer
 {
@@ -24,6 +25,22 @@ namespace Hl7.DemoFileSystemFhirServer
 
         public void InitializeIndexes()
         {
+        }
+
+        public List<FederationMember> Members()
+        {
+            List<FederationMember> members = new List<FederationMember>();
+
+            // read these from the file system
+            var parser = new Fhir.Serialization.FhirXmlParser();
+            var files = System.IO.Directory.EnumerateFiles(DirectorySystemService.Directory, $"Endpoint.*.xml");
+            foreach (var filename in files)
+            {
+                var resource = parser.Parse<Endpoint>(System.IO.File.ReadAllText(filename));
+                members.Add(new FederationMember(resource));
+            }
+
+            return members;
         }
 
         public Task<CapabilityStatement> GetConformance(ModelBaseInputs request, SummaryType summary)
@@ -63,7 +80,14 @@ namespace Hl7.DemoFileSystemFhirServer
 
         public IFhirResourceServiceSTU3 GetResourceService(ModelBaseInputs request, string resourceName)
         {
-            return new DirectoryResourceService() { RequestDetails = request, ResourceName = resourceName };
+            if (string.Compare(resourceName, "endpoint", true) == 0)
+            {
+                if (request.RequestUri.Query.Contains("administer-federation"))
+                {
+                    return new DirectoryResourceService() { RequestDetails = request, ResourceName = resourceName };
+                }
+            }
+            return new FederatedResourceService(Members()) { RequestDetails = request, ResourceName = resourceName };
         }
 
         public Task<Resource> PerformOperation(ModelBaseInputs request, string operation, Parameters operationParameters, SummaryType summary)
