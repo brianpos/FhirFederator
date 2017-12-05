@@ -65,13 +65,21 @@ namespace Hl7.DemoFileSystemFhirServer
             result.ResourceBase = RequestDetails.BaseUri;
             result.Total = 0;
 
+            // If there was no count provided, we'll just default in a value
+            if (!Count.HasValue)
+                Count = 40;
+
             // TODO: Thread the requests...
             // System.Threading.Tasks.Parallel.ForEach(_members, async (member) =>
             foreach (var member in _members)
             {
                 try
                 {
+                    // create a connection with the supported format type
                     FhirClient server = new FhirClient(member.Url);
+                    server.PreferCompressedResponses = true;
+                    server.PreferredFormat = member.Format;
+
                     SearchParams sp = new SearchParams();
                     foreach (var item in parameters)
                     {

@@ -12,10 +12,18 @@ namespace FhirFederator.Models
         {
             Name = ep.Name;
             Url = ep.Address;
+            if (ep.PayloadMimeType.Contains("application/fhir+xml"))
+                Format = Hl7.Fhir.Rest.ResourceFormat.Xml;
+            else if (ep.PayloadMimeType.Contains("application/fhir+json"))
+                Format = Hl7.Fhir.Rest.ResourceFormat.Json;
+            else
+                Format = Hl7.Fhir.Rest.ResourceFormat.Xml;
         }
         public string Name;
         public string Url;
         public string IdentifierNamespace;
+        public Hl7.Fhir.Rest.ResourceFormat Format;
+
 
         public Provenance CreateProvenance()
         {
