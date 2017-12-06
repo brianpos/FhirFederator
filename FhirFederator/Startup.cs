@@ -39,6 +39,14 @@ namespace FhirFederator
             if (!System.IO.Directory.Exists(DirectorySystemService.Directory))
                 System.IO.Directory.CreateDirectory(DirectorySystemService.Directory);
             services.UseFhirServerController(systemService);
+
+            // Tell the Net stack to only use TLS
+            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+
+            // This should not be in any production system, it
+            // essentially permits dud certs being used
+            // unchecked.
+            System.Net.ServicePointManager.ServerCertificateValidationCallback += (sender2, cert2, chain, sslPolicyErrors) => true;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
