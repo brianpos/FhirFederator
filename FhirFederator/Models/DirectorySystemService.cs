@@ -5,6 +5,7 @@ using Hl7.Fhir.Rest;
 using Hl7.Fhir.WebApi;
 using System.Threading.Tasks;
 using FhirFederator.Models;
+using System.Linq;
 
 namespace Hl7.DemoFileSystemFhirServer
 {
@@ -33,7 +34,8 @@ namespace Hl7.DemoFileSystemFhirServer
 
             // read these from the file system
             var parser = new Fhir.Serialization.FhirXmlParser();
-            var files = System.IO.Directory.EnumerateFiles(DirectorySystemService.Directory, $"Endpoint.*.xml");
+            var files = System.IO.Directory.EnumerateFiles(DirectorySystemService.Directory, $"Endpoint.*.xml").ToList();
+            files.Sort();
             foreach (var filename in files)
             {
                 var resource = parser.Parse<Endpoint>(System.IO.File.ReadAllText(filename));
@@ -74,6 +76,82 @@ namespace Hl7.DemoFileSystemFhirServer
             //{
             //    con.Rest[0].Resource.Add(model.GetRestResourceComponent());
             //}
+            foreach (var member in Members())
+            {
+                try
+                {
+                    // create a connection with the supported format type
+                    FhirClient server = new FhirClient(member.Url);
+                    member.PrepareFhirClientSecurity(server);
+                    System.Diagnostics.Trace.WriteLine($"Retrieving CapabilityStatement {member.Url} {member.Name}");
+                    server.PreferCompressedResponses = true;
+                    server.PreferredFormat = member.Format;
+
+                    CapabilityStatement csMember = server.CapabilityStatement();
+                    if (con.Rest[0].Resource.Count == 0)
+                    {
+                        // just clone all the resources from this one!
+                        // a great start
+                        foreach (var item in csMember.Rest?.FirstOrDefault()?.Resource)
+                        {
+                            item.AddExtension("http://example.org/Federation-member-name", new FhirString(member.Name));
+                            con.Rest[0].Resource.Add(item);
+
+                            // remove the non supported actions
+                            item.ConditionalCreate = null;
+                            item.ConditionalUpdate = null;
+                            item.ConditionalDelete = null;
+                            item.UpdateCreate = null;
+                            if (item.Type != ResourceType.Endpoint)
+                            {
+                                item.Interaction.RemoveAll(i =>
+                                    i.Code == CapabilityStatement.TypeRestfulInteraction.Create
+                                    || i.Code == CapabilityStatement.TypeRestfulInteraction.Update
+                                    || i.Code == CapabilityStatement.TypeRestfulInteraction.Delete
+                                    );
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Tag all these with others
+                        foreach (var item in con.Rest?.FirstOrDefault()?.Resource)
+                        {
+                            if (csMember.Rest[0].Resource.Where(c => c.Type == item.Type).Any())
+                            {
+                                item.AddExtension("http://example.org/Federation-member-name", new FhirString(member.Name));
+                            }
+                        }
+                    }
+                }
+                catch (FhirOperationException ex)
+                {
+                    System.Diagnostics.Trace.WriteLine(ex.Message);
+                    //if (ex.Outcome != null)
+                    //    result.Entry.Add(new Bundle.EntryComponent()
+                    //    {
+                    //        Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
+                    //        Resource = ex.Outcome
+                    //    });
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.WriteLine(ex.Message);
+                    //// some other weirdness went on
+                    //OperationOutcome oe = new OperationOutcome();
+                    //oe.Issue.Add(new OperationOutcome.IssueComponent()
+                    //{
+                    //    Severity = OperationOutcome.IssueSeverity.Error,
+                    //    Code = OperationOutcome.IssueType.Exception,
+                    //    Diagnostics = ex.Message
+                    //});
+                    //result.Entry.Add(new Bundle.EntryComponent()
+                    //{
+                    //    Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
+                    //    Resource = oe
+                    //});
+                }
+            }
 
             return System.Threading.Tasks.Task.FromResult(con);
         }
@@ -118,10 +196,10 @@ namespace Hl7.DemoFileSystemFhirServer
             foreach (var filename in files)
             {
                 var resource = parser.Parse<Resource>(System.IO.File.ReadAllText(filename));
-                result.AddResourceEntry(resource, 
-                    ResourceIdentity.Build(request.BaseUri, 
-                        resource.ResourceType.ToString(), 
-                        resource.Id, 
+                result.AddResourceEntry(resource,
+                    ResourceIdentity.Build(request.BaseUri,
+                        resource.ResourceType.ToString(),
+                        resource.Id,
                         resource.Meta.VersionId).OriginalString);
             }
             result.Total = result.Entry.Count;

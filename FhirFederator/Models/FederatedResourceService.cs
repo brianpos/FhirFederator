@@ -77,6 +77,7 @@ namespace Hl7.DemoFileSystemFhirServer
                 {
                     // create a connection with the supported format type
                     FhirClient server = new FhirClient(member.Url);
+                    member.PrepareFhirClientSecurity(server);
                     System.Diagnostics.Trace.WriteLine($"Searching {member.Url} {member.Name}");
                     server.PreferCompressedResponses = true;
                     server.PreferredFormat = member.Format;
@@ -130,16 +131,32 @@ namespace Hl7.DemoFileSystemFhirServer
                 catch (FhirOperationException ex)
                 {
                     if (ex.Outcome != null)
+                    {
+                        ex.Outcome.Issue.Insert(0, new OperationOutcome.IssueComponent()
+                        {
+                            Severity = OperationOutcome.IssueSeverity.Information,
+                            Code = OperationOutcome.IssueType.Exception,
+                            Details = new CodeableConcept(null, null, $"Exception Searching {member.Name}"),
+                            Diagnostics = member.Url
+                        });
                         result.Entry.Add(new Bundle.EntryComponent()
                         {
                             Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Outcome },
                             Resource = ex.Outcome
                         });
+                    }
                 }
                 catch (Exception ex)
                 {
                     // some other weirdness went on
                     OperationOutcome oe = new OperationOutcome();
+                    oe.Issue.Add(new OperationOutcome.IssueComponent()
+                    {
+                        Severity = OperationOutcome.IssueSeverity.Information,
+                        Code = OperationOutcome.IssueType.Exception,
+                        Details = new CodeableConcept(null, null, $"Exception Searching {member.Name}"),
+                        Diagnostics = member.Url
+                    });
                     oe.Issue.Add(new OperationOutcome.IssueComponent()
                     {
                         Severity = OperationOutcome.IssueSeverity.Error,

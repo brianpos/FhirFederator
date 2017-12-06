@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Hl7.Fhir.Rest;
 
 namespace FhirFederator.Models
 {
@@ -74,6 +75,32 @@ namespace FhirFederator.Models
             // include the resource in the provenance
             prov.Target.Add(resRef);
             return prov;
+        }
+
+        public void PrepareFhirClientSecurity(FhirClient server)
+        {
+            if (Headers?.Length > 0 || Certificate != null)
+            {
+                server.OnBeforeRequest += (object sender, BeforeRequestEventArgs e) =>
+                {
+                    if (Headers?.Length > 0)
+                    {
+                        foreach (var item in Headers)
+                        {
+                            if (item.Contains(":"))
+                            {
+                                string key = item.Substring(0, item.IndexOf(":"));
+                                string value = item.Substring(item.IndexOf(":") + 1).Trim();
+                                e.RawRequest.Headers[key] = value;
+                            }
+                        }
+                    }
+                    if (Certificate != null)
+                    {
+                        e.RawRequest.ClientCertificates.Add(Certificate);
+                    }
+                };
+            }
         }
     }
 }
