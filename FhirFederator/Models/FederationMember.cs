@@ -1,7 +1,9 @@
-﻿using Hl7.Fhir.Model;
+﻿using FhirFederator.Utils;
+using Hl7.Fhir.Model;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace FhirFederator.Models
@@ -18,11 +20,17 @@ namespace FhirFederator.Models
                 Format = Hl7.Fhir.Rest.ResourceFormat.Json;
             else
                 Format = Hl7.Fhir.Rest.ResourceFormat.Xml;
+            Headers = ep.Header.ToArray();
+            string thubmprint = ep.GetStringExtension("http://standards.telstrahealth.com.au/fhir/federation-thumbprint");
+            if (!string.IsNullOrEmpty(thubmprint))
+                Certificate = CertificateHelper.FindCertificateByThumbprint(thubmprint);
         }
         public string Name;
         public string Url;
         public string IdentifierNamespace;
         public Hl7.Fhir.Rest.ResourceFormat Format;
+        public string[] Headers;
+        public X509Certificate2 Certificate;
 
 
         public Provenance CreateProvenance()
