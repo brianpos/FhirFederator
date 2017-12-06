@@ -38,42 +38,71 @@ namespace FhirFederator.Models
         {
             var prov = new Provenance();
             prov.Recorded = DateTimeOffset.Now;
+            prov.Agent.Add(new Provenance.AgentComponent()
+            {
+                Role = new List<CodeableConcept>() { new CodeableConcept("http://hl7.org/fhir/v3/ParticipationType", "CST", "custodian", "Custodian") },
+                Who = new ResourceReference()
+                {
+                    Reference = Url,
+                    Display = Name
+                }
+            });
             return prov;
         }
 
-        public Hl7.Fhir.Model.Provenance WithProvenance(Provenance prov, Resource resource)
+        public Hl7.Fhir.Model.Provenance WithProvenance(Provenance prov, Resource resource, string fullUrl)
         {
             // create the resource reference (with the full URL intact)
-            var resRef = new ResourceReference(resource.ResourceIdentity(resource.ResourceBase).OriginalString);
+            ResourceReference resRef = null;
+            ResourceReference relativeRef = null;
+            if (!string.IsNullOrEmpty(resource.Id))
+            {
+                resRef = new ResourceReference(resource.ResourceIdentity(resource.ResourceBase).OriginalString);
+                relativeRef = new ResourceReference(ResourceIdentity.Build(resource.TypeName, resource.Id, resource.Meta?.VersionId).OriginalString);
 
-            // Append the display (like all good servers should)
-            if (resource is Organization org)
-            {
-                resRef.Display = org.Name;
+                // Append the display (like all good servers should)
+                if (resource is Organization org)
+                {
+                    resRef.Display = org.Name;
+                }
+                if (resource is Location loc)
+                {
+                    resRef.Display = loc.Name;
+                }
+                if (resource is Endpoint ep)
+                {
+                    resRef.Display = ep.Name;
+                }
+                if (resource is HealthcareService hcs)
+                {
+                    resRef.Display = hcs.Name;
+                }
+                if (resource is Practitioner prac)
+                {
+                    resRef.Display = prac.Name.FirstOrDefault()?.Text;
+                }
+                if (resource is PractitionerRole pracRole)
+                {
+                    resRef.Display = pracRole.Practitioner.Display + " - " + string.Join(", ", pracRole.Code?.FirstOrDefault()?.Coding?.FirstOrDefault()?.Display);
+                }
+                relativeRef.Display = resRef.Display;
             }
-            if (resource is Location loc)
-            {
-                resRef.Display = loc.Name;
-            }
-            if (resource is Endpoint ep)
-            {
-                resRef.Display = ep.Name;
-            }
-            if (resource is HealthcareService hcs)
-            {
-                resRef.Display = hcs.Name;
-            }
-            if (resource is Practitioner prac)
-            {
-                resRef.Display = prac.Name.FirstOrDefault()?.Text;
-            }
-            if (resource is PractitionerRole pracRole)
-            {
-                resRef.Display = pracRole.Practitioner.Display + " - " + string.Join(", ", pracRole.Code?.FirstOrDefault()?.Coding?.FirstOrDefault()?.Display);
-            }
-
             // include the resource in the provenance
-            prov.Target.Add(resRef);
+            Element what = resRef;
+            if (resRef != null)
+            {
+                prov.Target.Add(relativeRef);
+            }
+            else
+            {
+                what = new FhirUri(fullUrl);
+            }
+            prov.Entity.Add(new Provenance.EntityComponent()
+            {
+                Role = Provenance.ProvenanceEntityRole.Source,
+                // this is the URL of the original source content
+                What = what
+            });
             return prov;
         }
 

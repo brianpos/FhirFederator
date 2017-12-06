@@ -104,11 +104,13 @@ namespace Hl7.DemoFileSystemFhirServer
                             entry.Resource.ResourceBase = server.Endpoint;
                             if (entry.Resource.Meta == null)
                                 entry.Resource.Meta = new Meta();
-                            entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
+                            if (!string.IsNullOrEmpty(entry.Resource.Id))
+                                entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
                             var prov = member.CreateProvenance();
-                            member.WithProvenance(prov, entry.Resource);
+                            member.WithProvenance(prov, entry.Resource, entry.FullUrl);
                             result.Entry.Add(new Bundle.EntryComponent()
                             {
+                                FullUrl = $"urn-uuid{Guid.NewGuid().ToString("D")}",
                                 Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Include },
                                 Resource = prov
                             });
@@ -119,7 +121,7 @@ namespace Hl7.DemoFileSystemFhirServer
                             Severity = OperationOutcome.IssueSeverity.Information,
                             Code = OperationOutcome.IssueType.Informational,
                             Details = new CodeableConcept(null,null, $"Searching {member.Name} found {partialResult.Total} results"),
-                            Diagnostics = partialResult.SelfLink.OriginalString
+                            Diagnostics = partialResult.SelfLink?.OriginalString
                         });
                         result.Entry.Add(new Bundle.EntryComponent()
                         {
