@@ -82,10 +82,8 @@ namespace Hl7.DemoFileSystemFhirServer
                 {
                     // create a connection with the supported format type
                     FhirClient server = new FhirClient(member.Url);
-                    member.PrepareFhirClientSecurity(server);
+                    member.PrepareFhirClient(server);
                     System.Diagnostics.Trace.WriteLine($"Retrieving CapabilityStatement {member.Url} {member.Name}");
-                    server.PreferCompressedResponses = true;
-                    server.PreferredFormat = member.Format;
 
                     CapabilityStatement csMember = server.CapabilityStatement();
                     if (con.Rest[0].Resource.Count == 0)

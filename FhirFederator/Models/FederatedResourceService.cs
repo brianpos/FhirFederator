@@ -5,6 +5,7 @@ using Hl7.Fhir.Rest;
 using Hl7.Fhir.WebApi;
 using Hl7.Fhir.Utility;
 using FhirFederator.Models;
+using System.Linq;
 
 namespace Hl7.DemoFileSystemFhirServer
 {
@@ -16,6 +17,11 @@ namespace Hl7.DemoFileSystemFhirServer
         }
 
         private List<FederationMember> _members;
+
+        private FederationMember SelectFederationMember(string resourceId)
+        {
+            return _members.Where(m => resourceId.StartsWith(m.IdPrefix)).FirstOrDefault();
+        }
 
         public ModelBaseInputs RequestDetails { get; set; }
 
@@ -33,6 +39,59 @@ namespace Hl7.DemoFileSystemFhirServer
 
         public System.Threading.Tasks.Task<Resource> Get(string resourceId, string VersionId, SummaryType summary)
         {
+            var member = SelectFederationMember(resourceId);
+            if (member != null)
+            {
+                // we have a processor that can handle this request
+                // create a connection with the supported format type
+                FhirClient server = new FhirClient(member.Url);
+                member.PrepareFhirClient(server);
+                string directUri = ResourceIdentity.Build(server.Endpoint, ResourceName, resourceId.Substring(member.IdPrefix.Length), VersionId).OriginalString;
+                try
+                {
+                    System.Diagnostics.Trace.WriteLine($"Get {resourceId} from {member.Url} {member.Name}");
+                    Resource result = server.Get(directUri);
+                    result.ResourceBase = server.Endpoint;
+                    member.RewriteIdentifiers(result, RequestDetails.BaseUri, directUri);
+                    // if there was no valid source extension created (for whatever reason) just record the direct URI in there
+                    if (result.Meta.GetExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2") == null)
+                        result.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(directUri));
+                    return System.Threading.Tasks.Task.FromResult<Resource>(result);
+                }
+                catch (FhirOperationException ex)
+                {
+                    if (ex.Outcome != null)
+                    {
+                        ex.Outcome.Issue.Insert(0, new OperationOutcome.IssueComponent()
+                        {
+                            Severity = OperationOutcome.IssueSeverity.Information,
+                            Code = OperationOutcome.IssueType.Exception,
+                            Details = new CodeableConcept(null, null, $"Exception GET {directUri} from {member.Name}"),
+                            Diagnostics = member.Url
+                        });
+                        return System.Threading.Tasks.Task.FromResult<Resource>(ex.Outcome);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // some other weirdness went on
+                    OperationOutcome oe = new OperationOutcome();
+                    oe.Issue.Add(new OperationOutcome.IssueComponent()
+                    {
+                        Severity = OperationOutcome.IssueSeverity.Information,
+                        Code = OperationOutcome.IssueType.Exception,
+                        Details = new CodeableConcept(null, null, $"Exception GET {directUri} from {member.Name}"),
+                        Diagnostics = member.Url
+                    });
+                    oe.Issue.Add(new OperationOutcome.IssueComponent()
+                    {
+                        Severity = OperationOutcome.IssueSeverity.Error,
+                        Code = OperationOutcome.IssueType.Exception,
+                        Diagnostics = ex.Message
+                    });
+                    return System.Threading.Tasks.Task.FromResult<Resource>(oe);
+                }
+            }
             throw new NotImplementedException();
         }
 
@@ -48,6 +107,8 @@ namespace Hl7.DemoFileSystemFhirServer
 
         public System.Threading.Tasks.Task<Resource> PerformOperation(string operation, Parameters operationParameters, SummaryType summary)
         {
+            // No way to select which federation member, so drop it here
+            // Unless we allocated specific servers for specific tasks, such as a terminology server
             throw new NotImplementedException();
         }
 
@@ -77,10 +138,8 @@ namespace Hl7.DemoFileSystemFhirServer
                 {
                     // create a connection with the supported format type
                     FhirClient server = new FhirClient(member.Url);
-                    member.PrepareFhirClientSecurity(server);
+                    member.PrepareFhirClient(server);
                     System.Diagnostics.Trace.WriteLine($"Searching {member.Url} {member.Name}");
-                    server.PreferCompressedResponses = true;
-                    server.PreferredFormat = member.Format;
 
                     SearchParams sp = new SearchParams();
                     foreach (var item in parameters)
@@ -102,12 +161,9 @@ namespace Hl7.DemoFileSystemFhirServer
                         {
                             result.Entry.Add(entry);
                             entry.Resource.ResourceBase = server.Endpoint;
-                            if (entry.Resource.Meta == null)
-                                entry.Resource.Meta = new Meta();
-                            if (!string.IsNullOrEmpty(entry.Resource.Id))
-                                entry.Resource.Meta.AddExtension("http://hl7.org/fhir/StructureDefinition/extension-Meta.source|3.2", new FhirUri(entry.Resource.ResourceIdentity(entry.Resource.ResourceBase).OriginalString));
-                            var prov = member.CreateProvenance();
-                            member.WithProvenance(prov, entry.Resource, entry.FullUrl);
+                            member.RewriteIdentifiers(entry.Resource, RequestDetails.BaseUri, entry.FullUrl);
+                            var prov = member.CreateProvenance(entry.Resource, entry.FullUrl);
+                            entry.FullUrl = member.RewriteFhirUri(new FhirUri(entry.FullUrl), RequestDetails.BaseUri);
                             result.Entry.Add(new Bundle.EntryComponent()
                             {
                                 FullUrl = $"urn-uuid{Guid.NewGuid().ToString("D")}",
