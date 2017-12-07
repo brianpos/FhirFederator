@@ -166,7 +166,7 @@ namespace Hl7.DemoFileSystemFhirServer
                             entry.FullUrl = member.RewriteFhirUri(new FhirUri(entry.FullUrl), RequestDetails.BaseUri);
                             result.Entry.Add(new Bundle.EntryComponent()
                             {
-                                FullUrl = $"urn-uuid{Guid.NewGuid().ToString("D")}",
+                                FullUrl = $"urn:uuid:{Guid.NewGuid().ToString("D")}",
                                 Search = new Bundle.SearchComponent() { Mode = Bundle.SearchEntryMode.Include },
                                 Resource = prov
                             });
